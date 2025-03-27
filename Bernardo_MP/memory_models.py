@@ -3,6 +3,9 @@ class Stack:
         self.name = name
         self.items = []
 
+    def get_head(self):
+        return self.items[-1]
+
     def push(self, item):
         self.items.append(item)
 
@@ -19,6 +22,9 @@ class Queue:
     def __init__(self, name):
         self.name = name
         self.items = []
+
+    def get_head(self):
+        return self.items[0]
 
     def enqueue(self, item):
         self.items.append(item)
@@ -40,6 +46,14 @@ class Tape:
 
     def read(self):
         return self.tape.get(self.head_position, '_')
+
+    def read_right(self):
+        right_position = self.head_position + 1
+        return self.tape.get(right_position, '_')
+    
+    def read_left(self):
+        left_position = self.head_position - 1
+        return self.tape.get(left_position, '_')
 
     def write(self, symbol):
         self.tape[self.head_position] = symbol

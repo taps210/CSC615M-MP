@@ -1,5 +1,7 @@
 from memory_models import Stack, Queue, Tape, Tape2D
 import re
+import copy
+from collections import Counter
 
 class AbstractMachine:
     def __init__(self, definition):
@@ -47,7 +49,6 @@ class AbstractMachine:
         self.states[state_name] = commands
 
     def execute(self, input_string):
-        # Initialize the first tape with the input string
         if self.tapes:
             input_tape_name = list(self.tapes.keys())[0]
             self.tapes[input_tape_name].write_input(input_string)
@@ -55,85 +56,109 @@ class AbstractMachine:
             self.tapes["Input"] = Tape("Input")
             self.tapes["Input"].write_input(input_string)
 
-        # Set the initial state
         self.current_state = list(self.states.keys())[0]
 
         print(input_string)
-        while True:
-            #print(self.tapes["Input"].read(), self.current_state)
-            #print(self.tapes["Input"].read(), self.current_state, self.stacks["S1"].items)
-            print(self.tapes["Input"].read(), self.current_state, self.stacks["S1"].items, self.stacks["S2"].items)
-            #print(''.join(self.tapes[input_tape_name].tape[key] for key in sorted(self.tapes[input_tape_name].tape)), self.current_state)
-            command = self.states[self.current_state]
-            if command.startswith('SCAN RIGHT'):
-                self.scan_right(command)
-            elif command.startswith('SCAN LEFT'):
-                self.scan_left(command)
-            elif command.startswith('SCAN'):
-                self.scan_right(command)
-            elif command.startswith('PRINT'):
-                self.print(command)
-            elif command.startswith('READ'):
-                self.read(command)
-            elif command.startswith('WRITE'):
-                self.write(command)
-            elif command.startswith('RIGHT'):
-                self.right(command)
-            elif command.startswith('LEFT'):
-                self.left(command)
-            elif command.startswith('UP'):
-                self.up(command)
-            elif command.startswith('DOWN'):
-                self.down(command)
+        self.execute_recursive()
+        return
+    
+    def execute_recursive(self):
+        #print(self.tapes["Input"].read(), self.current_state)
+        #print(self.tapes["Input"].read(), self.current_state, self.stacks["S1"].items)
+        print(self.tapes["Input"].read(), self.current_state, self.stacks["S1"].items, self.stacks["S2"].items)
+        #print(''.join(self.tapes[input_tape_name].tape[key] for key in sorted(self.tapes[input_tape_name].tape)), self.current_state)
 
-            if self.current_state in ['accept', 'reject']:
-                print(self.current_state)
-                break
+        if self.current_state in ['accept', 'reject', 'halt']:
+            print(self.current_state)
+            return
+        
+        command = self.states[self.current_state]
+        logic = ''.join(command).split(' ')[0].split('(')[0]
+        possible_transitions = self.get_transitions(command, logic)
 
-    def scan_right(self, command):
+        if len(possible_transitions) == 1:
+            self.apply_transition(possible_transitions[0], logic, command)
+            self.execute_recursive()
+        else:
+            for index, transition in enumerate(possible_transitions):
+                if index == 0:
+                    self.apply_transition(transition, logic, command)
+                    self.execute_recursive()
+                else:
+                    # Create a copy of the current machine state
+                    machine_copy = copy.deepcopy(self)
+                    # Apply the transition
+                    machine_copy.apply_transition(transition, logic, command)
+                    # Recursively execute from the new state
+                    machine_copy.execute_recursive()
+        return
+    
+    def get_transitions(self, command, logic):
         # Extract the symbol and state transitions from the command
         transitions = re.findall(r'\((.*?)\)', command)
-        transitions = [item.split(',') for item in transitions]
+        if logic == 'SCAN' or logic == 'SCAN RIGHT' or logic == 'SCAN LEFT':
+            transitions = [item.split(',') for item in transitions]
+        else:
+            transitions = [item.split(',') for item in transitions[1:]]
         transitions = [[x.strip() for x in pair] for pair in transitions]
-        
-        # Read the current symbol from the input tape
+
+        possible_transitions = []
+        if logic == 'READ':
+            memory_object = command.split('(')[1].split(')')[0].strip()
+            for transition in transitions:
+                if memory_object in self.stacks:
+                    symbol = self.stacks[memory_object].get_head()
+                elif memory_object in self.queues:
+                    symbol = self.queues[memory_object].get_head()
+                if transition[0] == symbol:
+                    possible_transitions.append(transition)
+        elif logic == 'WRITE' or logic == 'PRINT':
+            for transition in transitions:
+                possible_transitions.append(transition)
+        else:
+            input_tape_name = list(self.tapes.keys())[0]
+            if logic == 'SCAN LEFT' or logic == 'LEFT':
+                current_symbol = self.tapes[input_tape_name].read_left()
+            elif logic == 'SCAN' or logic == 'SCAN RIGHT' or logic == 'RIGHT':
+                current_symbol = self.tapes[input_tape_name].read_right()
+            #elif command.startswith('UP'):
+            #elif command.startswith('DOWN'):
+
+            for transition in transitions:
+                symbol = transition[0].strip()
+                if symbol == current_symbol:
+                    possible_transitions.append(transition)
+            
+        if not possible_transitions:
+            self.current_state == 'reject'
+
+        return possible_transitions
+
+    def apply_transition(self, transition, logic, command):
+        # Apply the given transition to the machine state
+        if logic == 'SCAN LEFT':
+            self.scan_left(transition)
+        elif logic == 'SCAN' or logic == 'SCAN RIGHT':
+            self.scan_right(transition)
+        elif logic == 'WRITE':
+            self.write(transition, command)
+        elif logic == 'READ':
+            self.read(transition, command)
+        # Add similar cases for other commands
+            
+    def scan_right(self, transition):
+        next_state = transition[1]
         input_tape_name = list(self.tapes.keys())[0]
         self.tapes[input_tape_name].move_right()
-        current_symbol = self.tapes[input_tape_name].read()
+        self.current_state = next_state
+        return
 
-        # Find the matching transition for the current symbol
-        for transition in transitions:
-            symbol = transition[0].strip()
-            next_state = transition[1].strip()
-            if symbol == current_symbol:
-                self.current_state = next_state
-                return
-
-        # If no matching transition is found, reject the input
-        self.current_state = 'reject'
-
-    def scan_left(self, command):
-        # Extract the symbol and state transitions from the command
-        transitions = re.findall(r'\((.*?)\)', command)
-        transitions = [item.split(',') for item in transitions]
-        transitions = [[x.strip() for x in pair] for pair in transitions]
-        
-        # Read the current symbol from the input tape
+    def scan_left(self, transition):
+        next_state = transition[1]
         input_tape_name = list(self.tapes.keys())[0]
         self.tapes[input_tape_name].move_left()
-        current_symbol = self.tapes[input_tape_name].read()
-
-        # Find the matching transition for the current symbol
-        for transition in transitions:
-            symbol = transition[0].strip()
-            next_state = transition[1].strip()
-            if symbol == current_symbol:
-                self.current_state = next_state
-                return
-
-        # If no matching transition is found, reject the input
-        self.current_state = 'reject'
-
+        self.current_state = next_state
+        return
 
     def print(self, command):
         # Extract the symbol to print from the command
@@ -141,53 +166,30 @@ class AbstractMachine:
 
         # Print the symbol (for now, just output to console)
         print(symbol_to_print)
+        return
 
-    def read(self, command):
-        # Extract the memory object from the command
+    def read(self, transition, command):
         memory_object = command.split('(')[1].split(')')[0].strip()
+        next_state = transition[1].strip()
 
-        # Read a symbol from the specified memory object
         if memory_object in self.stacks:
             symbol = self.stacks[memory_object].pop()
         elif memory_object in self.queues:
             symbol = self.queues[memory_object].dequeue()
-        else:
-            symbol = None
 
-        # Update the current state based on the symbol read
-        transitions = re.findall(r'\((.*?)\)', command)
-        transitions = [item.split(',') for item in transitions[1:]]
-        transitions = [[x.strip() for x in pair] for pair in transitions]
-        for transition in transitions:
-            read_symbol = transition[0].strip()
-            next_state = transition[1].strip()
+        self.current_state = next_state
+        return
 
-            if read_symbol == symbol:
-                self.current_state = next_state
-                return
-
-        # If no matching transition is found, reject the input
-        self.current_state = 'reject'
-
-    def write(self, command):
-        # Extract the memory object from the command
+    def write(self, transition, command):
         memory_object = command.split('(')[1].split(')')[0].strip()
+        write_symbol = transition[0].strip()
+        next_state = transition[1].strip()
 
-        # Extract the symbol to write and the next state
-        transitions = re.findall(r'\((.*?)\)', command)
-        transitions = [item.split(',') for item in transitions[1:]]
-        transitions = [[x.strip() for x in pair] for pair in transitions]
-
-        write_symbol = transitions[0][0].strip()
-        next_state = transitions[0][1].strip()
-
-        #Write the symbol to the specified memory object
         if memory_object in self.stacks:
             self.stacks[memory_object].push(write_symbol)
         elif memory_object in self.queues:
             self.queues[memory_object].enqueue(write_symbol)
 
-        # Update the current state
         self.current_state = next_state
         return
 
