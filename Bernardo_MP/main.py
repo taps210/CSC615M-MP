@@ -4,18 +4,22 @@ machine_definition = """.DATA
 STACK S1
 STACK S2
 .LOGIC
-A] WRITE(S1) (#,K)
-K] WRITE(S2) (#,B)
-B] SCAN (a,C), (b,E)
-C] WRITE(S1) (X,B)
-D] WRITE(S2) (X,F)
-E] READ(S1) (X,D)
-F] SCAN (b,E), (c,G)
-G] READ(S2) (X,H)
-H] SCAN (c,G), (#,I)
-I] READ(S1) (#,J)
-J] READ(S2) (#,accept)"""
-input_string = "#aabbcc#"
+A] WRITE(S1) (#,B), (#,O)
+B] WRITE(S2) (#,C)
+C] WRITE(S1) (X,D)
+D] READ(S1) (X,E), (#,G)
+E] WRITE(S2) (X,F)
+F] SCAN (1,D)
+G] SCAN (1,H), (#,accept)
+H] WRITE(S1) (#,I)
+I] READ(S2) (X,J), (#,L)
+J] WRITE(S1) (X,I)
+L] WRITE(S2) (#,M)
+M] WRITE(S2) (X,N)
+N] WRITE(S2) (X,F)
+O] SCAN (#,P)
+P] READ(S1) (#,accept)"""
+input_string = "1"
 
 def main():
     machine = AbstractMachine(machine_definition)
