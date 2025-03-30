@@ -3,7 +3,7 @@ import re
 import copy
 
 class AbstractMachine:
-    def __init__(self, definition):
+    def __init__(self, definition, output_handler=print):
         self.definition = definition
         self.stacks = {}
         self.queues = {}
@@ -12,6 +12,10 @@ class AbstractMachine:
         self.current_state = None
         self.machine_number = 1
         self.log = []
+        self.output_handler = output_handler
+    
+    def log_output(self, text):
+        self.output_handler(f"[Machine {self.machine_number}] {text}")
 
     def parse_definition(self):
         lines = self.definition.split('\n')
@@ -195,15 +199,17 @@ class AbstractMachine:
         elif logic == 'DOWN': #for 2D tape
             self.down(transition, command)
 
+    # Modify existing print statements to use log_output
     def print_log(self):
+        self.log_output("\nExecution Steps:")
         for step in self.log:
-            print(f"State: {step['state']}")
+            self.log_output(f"State: {step['state']}")
             if step['memory']:
-                print("Memory Contents:")
+                self.log_output("Memory Contents:")
                 for name, contents in step['memory'].items():
-                    print(f"  {name}: {contents}")
-            print("-" * 40)
-            
+                    self.log_output(f"  {name}: {contents}")
+            self.log_output("-" * 40)
+
     def scan_right(self, transition):
         input_tape_name = list(self.tapes.keys())[0]
         self.tapes[input_tape_name].move_right()
