@@ -69,7 +69,6 @@ class AbstractMachine:
     def execute_loop(self):
         while True:
             self.log_step()
-
             if self.current_state in ['accept', 'reject', 'halt']:
                 break
             
@@ -91,28 +90,25 @@ class AbstractMachine:
                         machine_copy.apply_transition(transition, logic, command)
                         machine_copy.machine_number += index
                         machine_copy.execute_loop()
-        print(f"Machine: {self.machine_number}")
         self.print_log()
-        print(self.current_state)
-        print('\n\n')
 
     def log_step(self):
         memory_contents = {}
         for tape_name, tape in self.tapes.items():
-            if isinstance(tape, Tape2D):  # Handle 2D tapes separately
+            if isinstance(tape, Tape2D):
+                # Handle 2D tapes correctly
                 rows = {}
-                for (row, col), symbol in tape.tape.items():
-                    if row not in rows:
-                        rows[row] = {}
-                    rows[row][col] = symbol
-                
-                # Convert rows into strings for easier logging
+                for row_idx, columns in tape.tape.items():
+                    rows[row_idx] = {}
+                    for col_idx, symbol in columns.items():
+                        rows[row_idx][col_idx] = symbol
+                # Convert to sorted grid representation
                 grid = []
                 for row in sorted(rows.keys()):
-                    row_content = ''.join(
-                        rows[row].get(col, '_') for col in range(min(rows[row].keys()), max(rows[row].keys()) + 1)
-                    )
-                    grid.append(row_content)
+                    columns = []
+                    for col in sorted(rows[row].keys()):
+                        columns.append(str(rows[row][col]))
+                    grid.append(" ".join(columns))
                 memory_contents[tape_name] = grid
             else:  # Handle regular 1D tapes
                 memory_contents[tape_name] = ''.join(
@@ -169,6 +165,7 @@ class AbstractMachine:
                 current_symbol = self.tapes[tape_name].read_up()
             elif logic == 'DOWN':
                 current_symbol = self.tapes[tape_name].read_down()
+
             for transition in transitions:
                 symbol, replacement = transition[0].split('/')
                 if symbol == current_symbol:
@@ -207,7 +204,12 @@ class AbstractMachine:
             if step['memory']:
                 self.log_output("Memory Contents:")
                 for name, contents in step['memory'].items():
-                    self.log_output(f"  {name}: {contents}")
+                    if isinstance(contents, list) and all(isinstance(row, str) and len(row) > 1 for row in contents):  # Check for 2D tape (list of rows)
+                        self.log_output(f"  {name}:")
+                        for row in contents:
+                            self.log_output(f"    {row}")  # Print each row on a new line
+                    else:
+                        self.log_output(f"  {name}: {contents}")
             self.log_output("-" * 40)
 
     def scan_right(self, transition):

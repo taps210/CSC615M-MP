@@ -74,9 +74,26 @@ class Tape2D:
     def __init__(self, name):
         self.name = name
         self.tape = {0: {0: '#', 1: '#'}, 
-                     1: {0: '#', 1: '#'}}
-        self.head_row = 0
+                     1: {0: '#', 1: '#'},
+                     2: {0: '#', 1: '#'}}
+        self.head_row = 1
         self.head_col = 0
+        
+    def _ensure_rectangular(self):
+        if not self.tape:
+            return
+        # Get current max dimensions
+        max_row = max(self.tape.keys())
+        max_col = max(max(row.keys()) for row in self.tape.values())
+        
+        # Ensure all rows exist and have columns up to max_col
+        for row_num in range(0, max_row + 1):
+            if row_num not in self.tape:
+                self.tape[row_num] = {}
+            # Fill missing columns in this row
+            for col_num in range(0, max_col + 1):
+                if col_num not in self.tape[row_num]:
+                    self.tape[row_num][col_num] = '#'
 
     def read_right(self):
         right_position = self.head_col + 1
@@ -111,12 +128,15 @@ class Tape2D:
         max_row = max(self.tape.keys())
         max_col = max(max(row.keys()) for row in self.tape.values())
         if self.head_row == max_row:
+            self.tape[max_row + 1] = {}
             self.tape[max_row + 1] = {col: '#' for col in range(max_col + 1)}
         if self.head_col == max_col:
             self.tape[self.head_row][max_col + 1] = '#'
+        self._ensure_rectangular()
 
     def write_input(self, input_string):
         for i, char in enumerate(input_string):
-            self.tape[0][i+1] = char
+            self.tape[1][i+1] = char
         max_col = max(max(row.keys()) for row in self.tape.values())
-        self.tape[max_col + 1] = '#'
+        self.tape[1][max_col + 1] = '#'
+        self._ensure_rectangular()
