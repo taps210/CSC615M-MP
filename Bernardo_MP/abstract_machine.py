@@ -101,7 +101,10 @@ class AbstractMachine:
                 for row_idx, columns in tape.tape.items():
                     rows[row_idx] = {}
                     for col_idx, symbol in columns.items():
-                        rows[row_idx][col_idx] = symbol
+                        if row_idx == tape.head_row and col_idx == tape.head_col:
+                            rows[row_idx][col_idx] = f'[{symbol}]'
+                        else:
+                            rows[row_idx][col_idx] = symbol
                 # Convert to sorted grid representation
                 grid = []
                 for row in sorted(rows.keys()):
@@ -111,9 +114,13 @@ class AbstractMachine:
                     grid.append(" ".join(columns))
                 memory_contents[tape_name] = grid
             else:  # Handle regular 1D tapes
-                memory_contents[tape_name] = ''.join(
-                    [tape.tape[i] for i in sorted(tape.tape.keys())]
-                )
+                temp = []
+                for i in sorted(tape.tape.keys()):
+                    if i == tape.head_position:
+                        temp.append(f'[{tape.tape[i]}]')
+                    else:
+                        temp.append(tape.tape[i])
+                memory_contents[tape_name] = ''.join(temp)
         for stack_name, stack in self.stacks.items():
             memory_contents[stack_name] = list(stack.items)
         for queue_name, queue in self.queues.items():
